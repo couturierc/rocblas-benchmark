@@ -124,10 +124,22 @@ int time_gemm(Tensor<T1> A, Tensor<T1> B, Tensor<T2> C, const ProblemConfig &con
 }
 
 int main(int argc, char **argv) {
+  if (argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " <gpu_index>" << std::endl;
+    return 1;
+  }
+
+  int gpu_index = std::stoi(argv[1]);
+  hipSetDevice(gpu_index);
+
   initialize_problem_configs();
 
   int deviceCount = 1;
-  hipSetDevice(0);
+  hipGetDeviceCount(&deviceCount);
+  if (gpu_index >= deviceCount) {
+    std::cerr << "Invalid GPU index. Available GPUs: 0 to " << deviceCount - 1 << std::endl;
+    return 1;
+  }
 
   hiprandGenerator_t hiprand_gen;
   hiprandCreateGenerator(&hiprand_gen, HIPRAND_RNG_PSEUDO_DEFAULT);
@@ -136,7 +148,7 @@ int main(int argc, char **argv) {
   rocblas_handle rocblas_handle;
   CHECK_ROCBLAS_ERROR(rocblas_create_handle(&rocblas_handle));
 
-  std::cout << "Running GEMM benchmarks..." << std::endl;
+  std::cout << "Running GEMM benchmarks on GPU " << gpu_index << "..." << std::endl;
 
   for (const auto &config : gemm_configs) {
     Tensor<half> A({config.m, config.k});
@@ -154,7 +166,7 @@ int main(int argc, char **argv) {
               << config.c_type << ",Time (ms): " << time_us / 1000.0 << std::endl;
   }
 
-  std::cout << "Running GEMV benchmarks..." << std::endl;
+  std::cout << "Running GEMV benchmarks on GPU " << gpu_index << "..." << std::endl;
 
   for (const auto &config : gemv_configs) {
     Tensor<half> A({config.m, config.k});
