@@ -104,6 +104,26 @@ int time_gemm(Tensor<T1> A, Tensor<T1> B, Tensor<T2> C, const ProblemConfig &con
 
   auto start = std::chrono::steady_clock::now();
 
+  // Measure time for a single iteration
+  stat = rocblas_gemm_ex(
+      rocblas_handle, transA, transB, m, n, k, &alpha, A.begin(),
+      rocblas_datatype_f16_r, lda, B.begin(), rocblas_datatype_f16_r, ldb,
+      &beta, C.begin(), rocblas_datatype_f16_r, ldc, C.begin(),
+      rocblas_datatype_f16_r, ldc, rocblas_datatype_f32_r,
+      rocblas_gemm_algo_standard, 0, 0);
+  CHECK_ROCBLAS_ERROR(stat);
+
+  hipDeviceSynchronize();
+
+  auto end = std::chrono::steady_clock::now();
+  auto single_iteration_time_us = std::chrono::duration<double, std::micro>(end - start).count();
+
+  // Calculate the number of iterations needed to reach at least 3 minutes (180 seconds)
+  int min_duration_us = 180 * 1000000; // 120 seconds in microseconds
+  numRepeats = static_cast<int>(min_duration_us / single_iteration_time_us);
+
+  start = std::chrono::steady_clock::now();
+
   // Timing loop
   for (int i = 0; i < numRepeats; ++i) {
     stat = rocblas_gemm_ex(
@@ -117,7 +137,7 @@ int time_gemm(Tensor<T1> A, Tensor<T1> B, Tensor<T2> C, const ProblemConfig &con
 
   hipDeviceSynchronize();
 
-  auto end = std::chrono::steady_clock::now();
+  end = std::chrono::steady_clock::now();
   return static_cast<int>(
       std::chrono::duration<double, std::micro>(end - start).count() /
       numRepeats);
