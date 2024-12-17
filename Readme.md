@@ -30,13 +30,16 @@ To build the project, follow these steps:
     make  
     ```
 
-Running
+## Running
  
 To run the benchmark, execute the following command in the build directory:
-`./rocblas_benchmark`
- 
-This will run the benchmark with the specified problem sizes and configurations in inference_server_set. The output will show the time in milliseconds for each problem size and configuration for different data types (FP32, FP16-F32, FP16-F16, and INT8-INT32).
+```sh
+./rocblas_benchmark <gpu_index>
+```
+Replace `<gpu_index>` with the index of the GPU you want to use (e.g., 0).
 
-License
+This will run the benchmark with the specified problem sizes and configurations. The output will show the time in milliseconds for each problem size and configuration for different data types (FP32, FP16-F32, FP16-F16, and INT8-INT32).
+
+## License
  
 This project is open-source and free to use, modify, and distribute.
