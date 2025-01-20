@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <tuple>
 #include <vector>
+#include <fstream>
 
 #define CHECK_ROCBLAS_ERROR(error)                                             \
   if (error != rocblas_status_success) {                                       \
@@ -143,6 +144,16 @@ int time_gemm(Tensor<T1> A, Tensor<T1> B, Tensor<T2> C, const ProblemConfig &con
       numRepeats);
 }
 
+void write_results_to_file(const std::vector<std::tuple<std::string, std::string, int, int, int, std::string, std::string, std::string, double>>& results) {
+    std::ofstream file("results.csv");
+    file << "Benchmark Type,Configuration Name,m,n,k,a_type,b_type,c_type,Time (ms)\n";
+    for (const auto& result : results) {
+        file << std::get<0>(result) << "," << std::get<1>(result) << "," << std::get<2>(result) << ","
+             << std::get<3>(result) << "," << std::get<4>(result) << "," << std::get<5>(result) << ","
+             << std::get<6>(result) << "," << std::get<7>(result) << "," << std::get<8>(result) << "\n";
+    }
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " <gpu_index>" << std::endl;
@@ -170,6 +181,8 @@ int main(int argc, char **argv) {
 
   std::cout << "Running GEMM benchmarks on GPU " << gpu_index << "..." << std::endl;
 
+  std::vector<std::tuple<std::string, std::string, int, int, int, std::string, std::string, std::string, double>> results;
+
   for (const auto &config : gemm_configs) {
     Tensor<half> A({config.m, config.k});
     Tensor<half> B({config.k, config.n});
@@ -181,9 +194,12 @@ int main(int argc, char **argv) {
 
     int time_us = time_gemm<half, half>(A, B, C, config, rocblas_handle);
 
+    double time_ms = time_us / 1000.0;
+    results.emplace_back("GEMM", config.name, config.m, config.n, config.k, config.a_type, config.b_type, config.c_type, time_ms);
+
     std::cout << "GEMM," << config.name << "," << config.m << "," << config.n << ","
               << config.k << "," << config.a_type << "," << config.b_type << ","
-              << config.c_type << ",Time (ms): " << time_us / 1000.0 << std::endl;
+              << config.c_type << ",Time (ms): " << time_ms << std::endl;
   }
 
   std::cout << "Running GEMV benchmarks on GPU " << gpu_index << "..." << std::endl;
@@ -199,10 +215,15 @@ int main(int argc, char **argv) {
 
     int time_us = time_gemm<half, half>(A, x, y, config, rocblas_handle);
 
+    double time_ms = time_us / 1000.0;
+    results.emplace_back("GEMV", config.name, config.m, config.n, config.k, config.a_type, config.b_type, config.c_type, time_ms);
+
     std::cout << "GEMV," << config.name << "," << config.m << "," << config.n << ","
               << config.k << "," << config.a_type << "," << config.b_type << ","
-              << config.c_type << ",Time (ms): " << time_us / 1000.0 << std::endl;
+              << config.c_type << ",Time (ms): " << time_ms << std::endl;
   }
+
+  write_results_to_file(results);
 
   rocblas_destroy_handle(rocblas_handle);
   hiprandDestroyGenerator(hiprand_gen);
